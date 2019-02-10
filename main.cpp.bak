@@ -33,11 +33,6 @@ using namespace std;
 typedef bool boolean;
 typedef unsigned char byte;
 
-
-char *gtime (void);
-#define LOG_FILE "/home/pi/lorawan.log"
-FILE *fp;
-
 static const int CHANNEL = 0;
 
 byte currentMode = 0x81;
@@ -224,7 +219,7 @@ boolean receivePkt(char *payload)
     //  payload crc: 0x20
     if((irqflags & 0x20) == 0x20)
     {
-        fprintf(fp,"%s CRC error\n",gtime());
+        printf("CRC error\n");
         writeRegister(REG_IRQ_FLAGS, 0x20);
         return false;
     } else {
@@ -257,7 +252,7 @@ void SetupLoRa()
 
     if (version == 0x22) {
         // sx1272
-        fprintf(fp,"%s SX1272 detected, starting.\n",gtime());
+        printf("SX1272 detected, starting.\n");
         sx1272 = true;
     } else {
         // sx1276?
@@ -268,10 +263,10 @@ void SetupLoRa()
         version = readRegister(REG_VERSION);
         if (version == 0x12) {
             // sx1276
-            fprintf(fp,"%s SX1276 detected, starting.\n",gtime());
+            printf("SX1276 detected, starting.\n");
             sx1272 = false;
         } else {
-            fprintf(fp,"%s Unrecognized transceiver.\n",gtime());
+            printf("Unrecognized transceiver.\n");
             //printf("Version: 0x%x\n",version);
             exit(1);
         }
@@ -376,8 +371,7 @@ void sendstat() {
     stat_index += j;
     status_report[stat_index] = 0; /* add string terminator, for safety */
 
-    fprintf(fp,"%s stat update: %s\n", gtime(), (char *)(status_report+12)); /* DEBUG: display JSON stat */
-    fflush(fp);
+    printf("stat update: %s\n", (char *)(status_report+12)); /* DEBUG: display JSON stat */
 
     //send the update
     sendudp(status_report, stat_index);
@@ -411,10 +405,11 @@ void receivepacket() {
                 rssicorr = 157;
             }
 
-            fprintf(fp,"%s Packet RSSI: %d, ",gtime(),readRegister(0x1A)-rssicorr);
-            fprintf(fp,"%s RSSI: %d, ",gtime(),readRegister(0x1B)-rssicorr);
-            fprintf(fp,"%s SNR: %li, ",gtime(),SNR);
-            fprintf(fp,"%s Length: %i\n",gtime(),(int)receivedbytes);
+            printf("Packet RSSI: %d, ",readRegister(0x1A)-rssicorr);
+            printf("RSSI: %d, ",readRegister(0x1B)-rssicorr);
+            printf("SNR: %li, ",SNR);
+            printf("Length: %i",(int)receivedbytes);
+            printf("\n");
 
             int j;
             j = bin_to_b64((uint8_t *)message, receivedbytes, (char *)(b64), 341);
@@ -526,7 +521,7 @@ void receivepacket() {
             ++buff_index;
             buff_up[buff_index] = 0; /* add string terminator, for safety */
 
-            fprintf(fp,"%s rxpk update: %s\n",gtime(), (char *)(buff_up + 12)); /* DEBUG: display JSON payload */
+            printf("rxpk update: %s\n", (char *)(buff_up + 12)); /* DEBUG: display JSON payload */
 
             //send the messages
             sendudp(buff_up, buff_index);
@@ -542,12 +537,6 @@ int main () {
 
     struct timeval nowtime;
     uint32_t lasttime;
-	
-	fp=fopen(LOG_FILE,"a+");
-	if (fp == NULL) {
-	printf("%s  erro ao abrir arquivo\n",LOG_FILE);
-	exit(1);
-	}	
 
     wiringPiSetup () ;
     pinMode(ssPin, OUTPUT);
@@ -573,8 +562,7 @@ int main () {
     ioctl(s, SIOCGIFHWADDR, &ifr);
 
     /* display result */
-    fprintf(fp,"%s Gateway ID: %.2x:%.2x:%.2x:ff:ff:%.2x:%.2x:%.2x\n",
-		gtime(),
+    printf("Gateway ID: %.2x:%.2x:%.2x:ff:ff:%.2x:%.2x:%.2x\n",
            (unsigned char)ifr.ifr_hwaddr.sa_data[0],
            (unsigned char)ifr.ifr_hwaddr.sa_data[1],
            (unsigned char)ifr.ifr_hwaddr.sa_data[2],
@@ -582,8 +570,8 @@ int main () {
            (unsigned char)ifr.ifr_hwaddr.sa_data[4],
            (unsigned char)ifr.ifr_hwaddr.sa_data[5]);
 
-    fprintf(fp,"%s Listening at SF%i on %.6lf Mhz.\n", gtime(),sf,(double)freq/1000000);
-    fprintf(fp,"%s ------------------\n",gtime());
+    printf("Listening at SF%i on %.6lf Mhz.\n", sf,(double)freq/1000000);
+    printf("------------------\n");
 
     while(1) {
 
@@ -603,18 +591,5 @@ int main () {
 
     return (0);
 
-}
-/******************************************************************/
-char buffer [80];
-char *gtime (void)
-{
-  time_t rawtime;
-  struct tm * timeinfo;
-
-  time (&rawtime);
-  timeinfo = localtime (&rawtime);
-
-  strftime (buffer,80,"[%F %T]",timeinfo);
-  return buffer;
 }
 
